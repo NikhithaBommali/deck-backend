@@ -1,0 +1,76 @@
+# Render Blueprint — Deck Score (backend + frontend + keep-alive)
+# Deploy: https://dashboard.render.com → New → Blueprint → select deck-backend repo
+# CLI:    render login && render blueprint launch
+
+services:
+  # ── Backend API + Socket.io ──────────────────────────────────────────────
+  - type: web
+    name: deck-backend
+    runtime: node
+    plan: free
+    repo: https://github.com/NikhithaBommali/deck-backend
+    branch: main
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: MONGODB_URI
+        sync: false
+      - key: CLIENT_URL
+        fromService:
+          type: pserv
+          name: deck-frontend
+          envVarKey: RENDER_EXTERNAL_URL
+
+  # ── Ping every 14 min — keeps free-tier backend awake ────────────────────
+  - type: cron
+    name: deck-keepalive
+    runtime: node
+    plan: free
+    repo: https://github.com/NikhithaBommali/deck-backend
+    branch: main
+    schedule: "*/14 * * * *"
+    buildCommand: echo "keepalive ready"
+    startCommand: node scripts/keepalive.js
+    envVars:
+      - key: BACKEND_URL
+        fromService:
+          type: web
+          name: deck-backend
+          envVarKey: RENDER_EXTERNAL_URL
+      - key: FRONTEND_URL
+        fromService:
+          type: pserv
+          name: deck-frontend
+          envVarKey: RENDER_EXTERNAL_URL
+
+staticSites:
+  # ── Frontend (static — always on CDN, does not sleep) ────────────────────
+  - name: deck-frontend
+    repo: https://github.com/NikhithaBommali/deck-frontend
+    branch: main
+    buildCommand: npm install && npm run build
+    staticPublishPath: dist
+    pullRequestPreviewsEnabled: false
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
+    envVars:
+      - key: VITE_SOCKET_URL
+        fromService:
+          type: web
+          name: deck-backend
+          envVarKey: RENDER_EXTERNAL_URL
+      - key: VITE_API_URL
+        fromService:
+          type: web
+          name: deck-backend
+          envVarKey: RENDER_EXTERNAL_URL
+      - key: VITE_APP_URL
+        fromService:
+          type: pserv
+          name: deck-frontend
+          envVarKey: RENDER_EXTERNAL_URL
