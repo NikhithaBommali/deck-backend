@@ -5,14 +5,15 @@
 | Service | Type | Plan |
 |---------|------|------|
 | `deck-backend` | Web (Node + Socket.io) | Free |
-| `deck-frontend` | Static Site (Vite) | Free |
-| `deck-keepalive` | Cron (every 14 min) | Free |
+| `deck-frontend` | Static Site (`runtime: static`) | Free |
 
-The cron job pings `/health` on the backend and the frontend URL so the backend stays awake on the free tier.
+Keep-alive uses **GitHub Actions** (`.github/workflows/keepalive.yml`) — Render cron jobs are not on the free tier.
 
 ---
 
-## Option A — Render Dashboard (recommended)
+## Option A — Render Dashboard (required for first deploy)
+
+Blueprints **cannot be launched from the CLI** in Render CLI v2.x (only `validate` is supported). Use the dashboard:
 
 1. Push latest `deck-backend` to GitHub (must include `render.yaml`).
 2. Go to [Render Dashboard](https://dashboard.render.com) → **New** → **Blueprint**.
@@ -28,24 +29,24 @@ The cron job pings `/health` on the backend and the frontend URL so the backend 
 
 ---
 
-## Option B — Render CLI
+## Option B — Render CLI (validate only)
 
 ```bash
-# Install CLI (macOS)
-brew update && brew install render
-
-# Log in (opens browser)
 render login
-
-# From deck-backend repo
+render workspace set   # pick your workspace if prompted
 cd deck-backend
-git push origin main   # ensure render.yaml is on GitHub
-
-# Launch blueprint
-render blueprint launch
+render blueprints validate ./render.yaml
 ```
 
-When asked for `MONGODB_URI`, paste your MongoDB Atlas connection string.
+If validation passes, deploy using **Option A** (Dashboard → New → Blueprint).
+
+After services exist, use the CLI to manage them:
+
+```bash
+render services              # list deployed services
+render deploys create --help # trigger redeploys
+render logs --help           # view logs
+```
 
 ---
 

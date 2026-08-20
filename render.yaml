@@ -1,6 +1,6 @@
-# Render Blueprint — Deck Score (backend + frontend + keep-alive)
-# Deploy: https://dashboard.render.com → New → Blueprint → select deck-backend repo
-# CLI:    render login && render blueprint launch
+# Render Blueprint — Deck Score
+# Deploy: Dashboard → New → Blueprint → deck-backend repo
+# Validate: render blueprints validate ./render.yaml
 
 services:
   # ── Backend API + Socket.io ──────────────────────────────────────────────
@@ -20,40 +20,18 @@ services:
         sync: false
       - key: CLIENT_URL
         fromService:
-          type: pserv
-          name: deck-frontend
-          envVarKey: RENDER_EXTERNAL_URL
-
-  # ── Ping every 14 min — keeps free-tier backend awake ────────────────────
-  - type: cron
-    name: deck-keepalive
-    runtime: node
-    plan: free
-    repo: https://github.com/NikhithaBommali/deck-backend
-    branch: main
-    schedule: "*/14 * * * *"
-    buildCommand: echo "keepalive ready"
-    startCommand: node scripts/keepalive.js
-    envVars:
-      - key: BACKEND_URL
-        fromService:
           type: web
-          name: deck-backend
-          envVarKey: RENDER_EXTERNAL_URL
-      - key: FRONTEND_URL
-        fromService:
-          type: pserv
           name: deck-frontend
           envVarKey: RENDER_EXTERNAL_URL
 
-staticSites:
-  # ── Frontend (static — always on CDN, does not sleep) ────────────────────
-  - name: deck-frontend
+  # ── Frontend (Vite static site — always on CDN) ────────────────────────────
+  - type: web
+    name: deck-frontend
+    runtime: static
     repo: https://github.com/NikhithaBommali/deck-frontend
     branch: main
     buildCommand: npm install && npm run build
     staticPublishPath: dist
-    pullRequestPreviewsEnabled: false
     routes:
       - type: rewrite
         source: /*
@@ -71,6 +49,8 @@ staticSites:
           envVarKey: RENDER_EXTERNAL_URL
       - key: VITE_APP_URL
         fromService:
-          type: pserv
+          type: web
           name: deck-frontend
           envVarKey: RENDER_EXTERNAL_URL
+
+  # Keep-alive: use .github/workflows/keepalive.yml (Render cron is not free tier)
