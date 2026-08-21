@@ -14,21 +14,36 @@ jobs:
     steps:
       - name: Ping backend and frontend
         env:
-          BACKEND_URL: ${{ secrets.BACKEND_URL || 'https://deck-backend.onrender.com' }}
-          FRONTEND_URL: ${{ secrets.FRONTEND_URL || 'https://deck-frontend.onrender.com' }}
+          BACKEND_URL: ${{ secrets.BACKEND_URL }}
+          FRONTEND_URL: ${{ secrets.FRONTEND_URL }}
         run: |
           set -euo pipefail
-          backend="${BACKEND_URL%/}"
-          frontend="${FRONTEND_URL%/}"
+
+          backend="${BACKEND_URL:-https://deck-backend.onrender.com}"
+          frontend="${FRONTEND_URL:-https://deck-frontend.onrender.com}"
+          backend="${backend%/}"
+          frontend="${frontend%/}"
 
           if [ -z "$backend" ] || [ -z "$frontend" ]; then
             echo "::error::Missing BACKEND_URL or FRONTEND_URL."
-            echo "Add them under Settings → Secrets and variables → Actions, or use the defaults in this workflow."
             exit 1
           fi
 
-          echo "Pinging $backend/health"
-          curl -fsS "$backend/health"
-          echo ""
-          echo "Pinging $frontend"
-          curl -fsS "$frontend"
+          ping_url() {
+            local url="$1"
+            local label="$2"
+            echo "Pinging $label: $url"
+            for attempt in 1 2 3; do
+              if curl -fsS --connect-timeout 20 --max-time 90 "$url"; then
+                echo ""
+                return 0
+              fi
+              echo "Attempt $attempt failed for $label"
+              [ "$attempt" -lt 3 ] && sleep 15
+            done
+            echo "::error::Could not reach $label at $url (Render may be cold-starting or down)"
+            return 1
+          }
+
+          ping_url "$backend/health" "backend"
+          ping_url "$frontend" "frontend"
