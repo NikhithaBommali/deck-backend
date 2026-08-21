@@ -1,5 +1,5 @@
 # Free backup keep-alive (runs every 14 min if Render cron is unavailable).
-# After deploy, add repo secrets: BACKEND_URL, FRONTEND_URL (full https URLs).
+# Optional repo secrets override defaults: BACKEND_URL, FRONTEND_URL (full https URLs).
 
 name: Keep services awake
 
@@ -13,6 +13,22 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Ping backend and frontend
+        env:
+          BACKEND_URL: ${{ secrets.BACKEND_URL || 'https://deck-backend.onrender.com' }}
+          FRONTEND_URL: ${{ secrets.FRONTEND_URL || 'https://deck-frontend.onrender.com' }}
         run: |
-          curl -fsS "${{ secrets.BACKEND_URL }}/health"
-          curl -fsS "${{ secrets.FRONTEND_URL }}"
+          set -euo pipefail
+          backend="${BACKEND_URL%/}"
+          frontend="${FRONTEND_URL%/}"
+
+          if [ -z "$backend" ] || [ -z "$frontend" ]; then
+            echo "::error::Missing BACKEND_URL or FRONTEND_URL."
+            echo "Add them under Settings → Secrets and variables → Actions, or use the defaults in this workflow."
+            exit 1
+          fi
+
+          echo "Pinging $backend/health"
+          curl -fsS "$backend/health"
+          echo ""
+          echo "Pinging $frontend"
+          curl -fsS "$frontend"

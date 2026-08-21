@@ -52,13 +52,21 @@ render logs --help           # view logs
 
 ## Backup keep-alive (GitHub Actions)
 
-If Render cron is not available on your account, use the workflow in `.github/workflows/keepalive.yml`:
+If Render cron is not available on your account, use the workflow in `.github/workflows/keepalive.yml`.
 
-1. GitHub → **deck-backend** → **Settings** → **Secrets** → **Actions**
-2. Add:
-   - `BACKEND_URL` = `https://deck-backend.onrender.com`
-   - `FRONTEND_URL` = `https://deck-frontend.onrender.com`
-3. The workflow runs every 14 minutes automatically.
+It pings every 14 minutes and **uses these defaults** if secrets are not set:
+
+- Backend: `https://deck-backend.onrender.com/health`
+- Frontend: `https://deck-frontend.onrender.com`
+
+To override (different Render URLs), add GitHub **Actions secrets** on **deck-backend**:
+
+1. GitHub → **deck-backend** → **Settings** → **Secrets and variables** → **Actions**
+2. Add (optional):
+   - `BACKEND_URL` = `https://your-backend.onrender.com`
+   - `FRONTEND_URL` = `https://your-frontend.onrender.com`
+
+If the workflow fails with `No host part in the URL`, the secrets were empty and defaults were not deployed yet — push the latest `keepalive.yml` or set the secrets above.
 
 ---
 
